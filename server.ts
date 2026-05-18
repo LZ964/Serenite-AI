@@ -537,13 +537,27 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     // In production, serve the built static files
-    const distPath = path.join(process.cwd(), 'dist');
+    const distPath = path.resolve(process.cwd(), 'dist');
+    console.log(`[PROD] Production mode detected.`);
     console.log(`[PROD] Static files path: ${distPath}`);
     console.log(`[PROD] Current working directory: ${process.cwd()}`);
-    console.log(`[PROD] __dirname: ${__dirname}`);
     
-    // Serve static files
-    app.use(express.static(distPath));
+    // Simple file existence check to help debugging
+    import('fs').then(fs => {
+      const indexFile = path.join(distPath, 'index.html');
+      if (fs.existsSync(indexFile)) {
+        console.log(`[PROD] SUCCESS: index.html found at ${indexFile}`);
+      } else {
+        console.error(`[PROD] WARNING: index.html NOT found at ${indexFile}`);
+        // List files in dist to help debug
+        try {
+          const files = fs.readdirSync(distPath);
+          console.log(`[PROD] Files in dist: ${files.join(', ')}`);
+        } catch (e) {
+          console.error(`[PROD] Could not read dist directory: ${e}`);
+        }
+      }
+    }).catch(err => console.error("FS import failed", err));
     
     // Logging middleware for production to debug requests
     app.use((req, res, next) => {
@@ -552,13 +566,23 @@ async function startServer() {
       next();
     });
 
-    // SPA fallback
-    app.get('*', (req, res) => {
+    // Serve static files
+    app.use(express.static(distPath, {
+      index: false // We handle the root and fallbacks via our wildcard route
+    }));
+
+    // Root route should serve index.html
+    app.get('/', (req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+
+    // SPA fallback - Use '*all' for Express 5 catch-all
+    app.get('*all', (req, res) => {
       const indexPath = path.join(distPath, 'index.html');
       res.sendFile(indexPath, (err) => {
         if (err) {
           console.error(`[PROD] Error sending index.html: ${err.message}`);
-          res.status(404).send("Application files not found. Please check build output.");
+          res.status(404).send("Application files not found. Please ensure the build completed successfully.");
         }
       });
     });
