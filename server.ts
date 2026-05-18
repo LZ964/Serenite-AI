@@ -13,10 +13,17 @@ dotenv.config();
 
 let _dirname = '';
 try {
-  _dirname = path.dirname(fileURLToPath(import.meta.url));
+  // Use a more robust way to get dirname that works in both bundled and unbundled, ESM and CJS
+  if (typeof __dirname !== 'undefined') {
+    _dirname = __dirname;
+  } else {
+    _dirname = path.dirname(fileURLToPath(import.meta.url));
+  }
 } catch (e) {
-  _dirname = process.cwd(); // Fallback for CJS
+  _dirname = process.cwd();
 }
+console.log(`[STARTUP] Resolved __dirname: ${_dirname}`);
+console.log(`[STARTUP] Current working directory: ${process.cwd()}`);
 
 // Initialize Firebase Admin (Lazy)
 let adminDb: admin.firestore.Firestore | null = null;
@@ -94,11 +101,13 @@ async function startServer() {
 
   // API Routes
   app.get('/api/health', (req, res) => {
+    console.log(`[HEALTH] Health check request from ${req.ip}`);
     res.json({ 
       status: 'ok', 
       time: new Date().toISOString(),
       env: process.env.NODE_ENV,
-      port: PORT
+      port: PORT,
+      uptime: process.uptime()
     });
   });
 
@@ -538,8 +547,11 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     // In production, serve the built static files
-    const distPath = path.resolve(process.cwd(), 'dist');
-    console.log(`[PROD] Mode static: ${distPath}`);
+    // Use __dirname if available (bundled as CJS), otherwise fallback to resolve
+    const currentFileDir = typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url));
+    const distPath = path.resolve(currentFileDir); // dist/ contains server.cjs, so distPath IS currentFileDir
+    
+    console.log(`[PROD] Mode static. distPath: ${distPath}`);
 
     // Serve static files first
     app.use(express.static(distPath, {
@@ -559,19 +571,31 @@ async function startServer() {
       if (fs.existsSync(indexPath)) {
         res.sendFile(indexPath);
       } else {
-        res.status(404).send("index.html not found in dist. Check build.");
+        console.error(`[PROD] index.html not found at ${indexPath}`);
+        // Fallback: try relative to process.cwd()
+        const fallbackPath = path.join(process.cwd(), 'dist', 'index.html');
+        if (fs.existsSync(fallbackPath)) {
+          res.sendFile(fallbackPath);
+        } else {
+          res.status(404).send(`index.html not found. Checked: ${indexPath} and ${fallbackPath}`);
+        }
       }
     });
 
     // SPA fallback
     app.get('*', (req, res) => {
       const indexPath = path.join(distPath, 'index.html');
-      res.sendFile(indexPath, (err) => {
-        if (err) {
-          console.error(`[PROD] Error sending index.html: ${err.message}`);
-          res.status(404).send("Application files not found.");
-        }
-      });
+      if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+      } else {
+        const fallbackPath = path.join(process.cwd(), 'dist', 'index.html');
+        res.sendFile(fallbackPath, (err) => {
+          if (err) {
+            console.error(`[PROD] SPA fallback: index.html not found even at fallback. Checked: ${indexPath} and ${fallbackPath}`);
+            res.status(404).send("Application files not found.");
+          }
+        });
+      }
     });
   }
 
