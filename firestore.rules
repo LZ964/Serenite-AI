@@ -44,25 +44,25 @@ service cloud.firestore {
     // USERS
     // -------------------------------------------------------------------------
     function isValidUser(data) {
-      return data.get('uid', '') is string && data.get('uid', '').size() <= 128
-          && (data.get('email', null) == null || (data.get('email', '') is string && data.get('email', '').size() <= 256))
-          && data.get('points', 0) is int && data.get('points', 0) >= 0
+      return data.get('uid', '') is string
+          && (data.get('email', null) == null || data.get('email', '') is string)
+          && (data.get('points', 0) is int || data.get('points', 0) is float)
           && data.get('isPremium', false) is bool
-          && data.get('requestCount', 0) is int
+          && (data.get('requestCount', 0) is int || data.get('requestCount', 0) is float)
+          && (data.get('displayName', null) == null || data.get('displayName', '') is string)
+          && (data.get('photoURL', null) == null || data.get('photoURL', '') is string)
           && (data.get('sobrietyDate', null) == null || data.get('sobrietyDate', '') is string)
           && (data.get('recoveryStartDate', null) == null || data.get('recoveryStartDate', '') is string)
-          && (data.get('displayName', null) == null || (data.get('displayName', '') is string && data.get('displayName', '').size() <= 512))
-          && (data.get('photoURL', null) == null || (data.get('photoURL', '') is string && data.get('photoURL', '').size() <= 2048))
           && (data.get('lastGratitudeAt', null) == null || data.get('lastGratitudeAt', '') is string)
           && (data.get('lastSobrietyCheck', null) == null || data.get('lastSobrietyCheck', '') is string)
-          && (data.get('higherPower', null) == null || (data.get('higherPower', '') is string && data.get('higherPower', '').size() <= 100))
-          && (data.get('sponsorGender', null) == null || data.get('sponsorGender', '') in ['parrain', 'marraine'])
+          && (data.get('higherPower', null) == null || data.get('higherPower', '') is string)
+          && (data.get('sponsorGender', null) == null || data.get('sponsorGender', '') is string)
           && (data.get('birthDate', null) == null || data.get('birthDate', '') is string)
           && (data.get('currentStep', null) == null || data.get('currentStep', '') is string)
           && (data.get('language', null) == null || data.get('language', '') is string)
-          && (data.get('challenges', null) == null || (data.get('challenges', []) is list && data.get('challenges', []).size() <= 50))
+          && (data.get('challenges', null) == null || data.get('challenges', []) is list)
           && (data.get('createdAt', null) == null || data.get('createdAt', '') is string)
-          && (data.get('completedSteps', null) == null || (data.get('completedSteps', []) is list && data.get('completedSteps', []).size() <= 12));
+          && (data.get('completedSteps', null) == null || data.get('completedSteps', []) is list);
     }
 
     match /users/{userId} {
