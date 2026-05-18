@@ -22,6 +22,47 @@ interface ProfileProps {
   onPortal: () => void;
 }
 
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  }
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: db.app.options.apiKey ? 'authenticated' : 'not-authenticated',
+      email: null,
+      emailVerified: null,
+    },
+    operationType,
+    path
+  }
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
+
 const Profile: React.FC<ProfileProps> = ({ user, userData, lang, onUpgrade, onPortal }) => {
   const [displayName, setDisplayName] = useState(userData?.displayName || '');
   const [sobrietyDate, setSobrietyDate] = useState(userData?.sobrietyDate?.split('T')[0] || '');
@@ -45,7 +86,7 @@ const Profile: React.FC<ProfileProps> = ({ user, userData, lang, onUpgrade, onPo
       });
       setMessage({ type: 'success', text: lang === 'fr' ? 'Profil mis à jour avec succès.' : 'Profile updated successfully.' });
     } catch (err: any) {
-      console.error(err);
+      handleFirestoreError(err, OperationType.UPDATE, `users/${user.uid}`);
       setMessage({ type: 'error', text: lang === 'fr' ? 'Erreur lors de la mise à jour.' : 'Error during update.' });
     } finally {
       setIsSaving(false);
@@ -61,10 +102,21 @@ const Profile: React.FC<ProfileProps> = ({ user, userData, lang, onUpgrade, onPo
     setMessage(null);
     try {
       const q = query(collection(db, 'messages'), where('userId', '==', user.uid));
-      const snap = await getDocs(q);
+      let snap;
+      try {
+        snap = await getDocs(q);
+      } catch (error) {
+        handleFirestoreError(error, OperationType.GET, 'messages');
+        return;
+      }
+      
       const batch = writeBatch(db);
       snap.docs.forEach(d => batch.delete(d.ref));
-      await batch.commit();
+      try {
+        await batch.commit();
+      } catch (error) {
+        handleFirestoreError(error, OperationType.DELETE, 'messages_batch');
+      }
 
       setMessage({ type: 'success', text: lang === 'fr' ? 'Mémoire de l\'IA supprimée.' : 'AI memory deleted.' });
     } catch (err: any) {

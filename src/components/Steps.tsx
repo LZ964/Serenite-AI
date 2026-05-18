@@ -14,6 +14,47 @@ interface StepsProps {
   lang: Language;
 }
 
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  }
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: db.app.options.apiKey ? 'authenticated' : 'not-authenticated',
+      email: null,
+      emailVerified: null,
+    },
+    operationType,
+    path
+  }
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
+
 const Steps: React.FC<StepsProps> = ({ user, userData, lang }) => {
   const [loading, setLoading] = useState(false);
   const [selectedStep, setSelectedStep] = useState<number | null>(null);
@@ -29,24 +70,36 @@ const Steps: React.FC<StepsProps> = ({ user, userData, lang }) => {
     try {
       if (!isCompleted) {
         const stepId = `${user.uid}_step_${stepNumber}`;
-        await setDoc(doc(db, 'steps', stepId), {
-          userId: user.uid,
-          stepNumber,
-          completedAt: new Date().toISOString(),
-        });
+        try {
+          await setDoc(doc(db, 'steps', stepId), {
+            userId: user.uid,
+            stepNumber,
+            completedAt: new Date().toISOString(),
+          });
+        } catch (error) {
+          handleFirestoreError(error, OperationType.CREATE, `steps/${stepId}`);
+        }
         
         const newCompleted = [...completedSteps, stepNumber];
-        await updateDoc(doc(db, 'users', user.uid), {
-          points: (userData.points || 0) + 100,
-          completedSteps: newCompleted
-        });
+        try {
+          await updateDoc(doc(db, 'users', user.uid), {
+            points: (userData.points || 0) + 100,
+            completedSteps: newCompleted
+          });
+        } catch (error) {
+          handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
+        }
       } else {
         // Undo completion
         const newCompleted = completedSteps.filter((s: number) => s !== stepNumber);
-        await updateDoc(doc(db, 'users', user.uid), {
-          points: Math.max(0, (userData.points || 0) - 100),
-          completedSteps: newCompleted
-        });
+        try {
+          await updateDoc(doc(db, 'users', user.uid), {
+            points: Math.max(0, (userData.points || 0) - 100),
+            completedSteps: newCompleted
+          });
+        } catch (error) {
+          handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
+        }
       }
     } catch (error) {
       console.error("Error toggling step:", error);

@@ -31,6 +31,53 @@ import Gratitudes from './components/Gratitudes';
 import Profile from './components/Profile';
 import Landing from './components/Landing';
 
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  }
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData?.map(provider => ({
+        providerId: provider.providerId,
+        email: provider.email,
+      })) || []
+    },
+    operationType,
+    path
+  }
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
+
 export default function App() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [userData, setUserData] = useState<any>(null);
@@ -60,7 +107,11 @@ export default function App() {
       const handleSuccess = async () => {
         if (!user) return;
         const userRef = doc(db, 'users', user.uid);
-        await updateDoc(userRef, { isPremium: true });
+        try {
+          await updateDoc(userRef, { isPremium: true });
+        } catch (error) {
+          handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
+        }
         window.history.replaceState({}, '', window.location.pathname);
       };
       handleSuccess();
@@ -95,7 +146,13 @@ export default function App() {
     const initUserData = async () => {
       try {
         const userRef = doc(db, 'users', user.uid);
-        const userSnap = await getDoc(userRef);
+        let userSnap;
+        try {
+          userSnap = await getDoc(userRef);
+        } catch (error) {
+          handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
+          return;
+        }
         
         if (!userSnap.exists()) {
           const initialData = {
@@ -111,7 +168,11 @@ export default function App() {
             sobrietyDate: new Date().toISOString(),
             createdAt: new Date().toISOString(),
           };
-          await setDoc(userRef, initialData);
+          try {
+            await setDoc(userRef, initialData);
+          } catch (error) {
+            handleFirestoreError(error, OperationType.CREATE, `users/${user.uid}`);
+          }
           setUserData(initialData);
         }
         
@@ -128,7 +189,7 @@ export default function App() {
           }
           setLoading(false);
         }, (err) => {
-          console.error("Snapshot error:", err);
+          handleFirestoreError(err, OperationType.GET, `users/${user.uid}`);
           setLoading(false);
         });
       } catch (err) {
@@ -149,7 +210,11 @@ export default function App() {
     setLang(newLang);
     if (user) {
       const userRef = doc(db, 'users', user.uid);
-      await updateDoc(userRef, { language: newLang });
+      try {
+        await updateDoc(userRef, { language: newLang });
+      } catch (error) {
+        handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
+      }
     }
   };
 
@@ -287,7 +352,10 @@ export default function App() {
             </button>
             <div className="flex items-center gap-3 lg:hidden">
               <div className="w-8 h-8 bg-natural-primary rounded-lg flex items-center justify-center text-white font-bold text-sm">S</div>
-              <span className="font-bold text-natural-ink tracking-tight text-sm">Sérénité AI</span>
+              <div className="flex flex-col">
+                <span className="font-bold text-natural-ink tracking-tight text-sm">Sérénité AI</span>
+                <span className="text-[8px] font-black text-natural-primary uppercase tracking-widest">Beta</span>
+              </div>
             </div>
           </div>
           <div className="hidden lg:block text-natural-accent text-sm font-bold italic opacity-60">
@@ -511,22 +579,30 @@ export default function App() {
         completedSteps.push(i);
       }
 
-      await updateDoc(userRef, {
-        sobrietyDate: sobrietyDate.toISOString(),
-        recoveryStartDate: new Date(onboardingData.recoveryStartDate).toISOString(),
-        birthDate: onboardingData.birthDate,
-        currentStep: onboardingData.currentStep,
-        completedSteps: completedSteps
-      });
+      try {
+        await updateDoc(userRef, {
+          sobrietyDate: sobrietyDate.toISOString(),
+          recoveryStartDate: new Date(onboardingData.recoveryStartDate).toISOString(),
+          birthDate: onboardingData.birthDate,
+          currentStep: onboardingData.currentStep,
+          completedSteps: completedSteps
+        });
+      } catch (error) {
+        handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
+      }
 
       // Also create entries in 'steps' collection for completed steps
       for (const step of completedSteps) {
         const stepId = `${user.uid}_step_${step}`;
-        await setDoc(doc(db, 'steps', stepId), {
-          userId: user.uid,
-          stepNumber: step,
-          completedAt: new Date().toISOString(),
-        });
+        try {
+          await setDoc(doc(db, 'steps', stepId), {
+            userId: user.uid,
+            stepNumber: step,
+            completedAt: new Date().toISOString(),
+          });
+        } catch (error) {
+          handleFirestoreError(error, OperationType.CREATE, `steps/${stepId}`);
+        }
       }
 
       setShowOnboarding(false);

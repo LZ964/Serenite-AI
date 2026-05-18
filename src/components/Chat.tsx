@@ -38,6 +38,49 @@ interface Message {
   createdAt: string;
 }
 
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  }
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: db.app.options.apiKey ? 'authenticated' : 'not-authenticated', // Minimal auth info for helper
+      email: null,
+      emailVerified: null,
+    },
+    operationType,
+    path
+  }
+  // Instead of complex auth info here, we'll try to get it from the app if possible, 
+  // but since we're in a component, we'll keep it simple or pass it.
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
+
 const Chat: React.FC<ChatProps> = ({ user, userData, lang, trigger, onTriggerHandled }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -161,7 +204,13 @@ const Chat: React.FC<ChatProps> = ({ user, userData, lang, trigger, onTriggerHan
       orderBy('createdAt', 'asc'),
       limit(50)
     );
-    const snap = await getDocs(q);
+    let snap;
+    try {
+      snap = await getDocs(q);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.GET, 'messages');
+      return;
+    }
     
     const docs: Message[] = [];
     for (const d of snap.docs) {
@@ -266,7 +315,7 @@ const Chat: React.FC<ChatProps> = ({ user, userData, lang, trigger, onTriggerHan
       const { doc, updateDoc } = await import('firebase/firestore');
       await updateDoc(doc(db, 'users', user.uid), { sponsorGender: gender });
     } catch (e) {
-      console.error("Failed to update gender", e);
+      handleFirestoreError(e, OperationType.UPDATE, `users/${user.uid}`);
     }
   };
 
@@ -356,11 +405,15 @@ const Chat: React.FC<ChatProps> = ({ user, userData, lang, trigger, onTriggerHan
 
     if (userData?.isPremium && encryptionPin) {
       const encryptedContent = encryptData(text, encryptionPin);
-      await addDoc(collection(db, 'messages'), {
-        userId: user.uid,
-        ...userMessage,
-        content: encryptedContent
-      });
+      try {
+        await addDoc(collection(db, 'messages'), {
+          userId: user.uid,
+          ...userMessage,
+          content: encryptedContent
+        });
+      } catch (error) {
+        handleFirestoreError(error, OperationType.CREATE, 'messages');
+      }
     }
 
     try {
@@ -412,7 +465,11 @@ const Chat: React.FC<ChatProps> = ({ user, userData, lang, trigger, onTriggerHan
           }];
         }
         
-        await updateDoc(userRef, updates);
+        try {
+          await updateDoc(userRef, updates);
+        } catch (error) {
+          handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
+        }
       }
 
       const modelMessage: Message = {
@@ -426,11 +483,15 @@ const Chat: React.FC<ChatProps> = ({ user, userData, lang, trigger, onTriggerHan
 
       if (userData?.isPremium && encryptionPin) {
         const encryptedModelContent = encryptData(data.response, encryptionPin);
-        await addDoc(collection(db, 'messages'), {
-          userId: user.uid,
-          ...modelMessage,
-          content: encryptedModelContent
-        });
+        try {
+          await addDoc(collection(db, 'messages'), {
+            userId: user.uid,
+            ...modelMessage,
+            content: encryptedModelContent
+          });
+        } catch (error) {
+          handleFirestoreError(error, OperationType.CREATE, 'messages');
+        }
       }
     } catch (error: any) {
       const errorMessage: Message = {

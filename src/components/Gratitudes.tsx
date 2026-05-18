@@ -13,6 +13,47 @@ interface GratitudesProps {
   lang: Language;
 }
 
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  }
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: db.app.options.apiKey ? 'authenticated' : 'not-authenticated',
+      email: null,
+      emailVerified: null,
+    },
+    operationType,
+    path
+  }
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
+
 const Gratitudes: React.FC<GratitudesProps> = ({ user, userData, lang }) => {
   const [gratitudes, setGratitudes] = useState<any[]>([]);
   const [input, setInput] = useState('');
@@ -32,7 +73,13 @@ const Gratitudes: React.FC<GratitudesProps> = ({ user, userData, lang }) => {
         orderBy('createdAt', 'desc'),
         limit(10)
       );
-      const snap = await getDocs(q);
+      let snap;
+      try {
+        snap = await getDocs(q);
+      } catch (error) {
+        handleFirestoreError(error, OperationType.GET, 'gratitudes');
+        return;
+      }
       setGratitudes(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     } catch (e) {
       console.error(e);
@@ -51,13 +98,21 @@ const Gratitudes: React.FC<GratitudesProps> = ({ user, userData, lang }) => {
         createdAt: new Date().toISOString()
       };
 
-      await addDoc(collection(db, 'gratitudes'), newGratitude);
+      try {
+        await addDoc(collection(db, 'gratitudes'), newGratitude);
+      } catch (error) {
+        handleFirestoreError(error, OperationType.CREATE, 'gratitudes');
+      }
       
       // Update user points + lastGratitude date
-      await updateDoc(doc(db, 'users', user.uid), {
-        points: (userData.points || 0) + 20,
-        lastGratitudeAt: new Date().toISOString()
-      });
+      try {
+        await updateDoc(doc(db, 'users', user.uid), {
+          points: (userData.points || 0) + 20,
+          lastGratitudeAt: new Date().toISOString()
+        });
+      } catch (error) {
+        handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
+      }
 
       setInput('');
       setJustAdded(true);

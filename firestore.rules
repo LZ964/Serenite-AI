@@ -12,8 +12,12 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
     function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
     function incoming() {
@@ -27,6 +31,13 @@ service cloud.firestore {
     // Default deny
     match /{document=**} {
       allow read, write: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // TEST CONNECTION
+    // -------------------------------------------------------------------------
+    match /test/connection {
+      allow get: if true;
     }
 
     // -------------------------------------------------------------------------
@@ -49,22 +60,24 @@ service cloud.firestore {
           && (data.birthDate == null || data.birthDate is string)
           && (data.currentStep == null || data.currentStep is string)
           && (data.language == null || data.language is string)
-          && (data.challenges == null || data.challenges is list)
+          && (data.challenges == null || (data.challenges is list && data.challenges.size() <= 50))
           && (data.createdAt == null || data.createdAt is string)
-          && (data.completedSteps == null || data.completedSteps is list);
+          && (data.completedSteps == null || (data.completedSteps is list && data.completedSteps.size() <= 12));
     }
 
     match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow create: if isOwner(userId) 
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow create: if isOwner(userId) && isValidId(userId) && isVerified()
                     && isValidUser(incoming()) 
                     && incoming().isPremium == false
                     && incoming().points == 0
-                    && incoming().requestCount == 0;
-      allow update: if isOwner(userId) 
+                    && incoming().requestCount == 0
+                    && incoming().keys().hasAll(['uid', 'points', 'isPremium', 'requestCount'])
+                    && incoming().keys().size() <= 20;
+      allow update: if isOwner(userId) && isValidId(userId) && isVerified()
                     && isValidUser(incoming())
                     && incoming().uid == userId // Immutable
-                    && incoming().isPremium == existing().isPremium // User cannot change subscription status
+                    && incoming().isPremium == existing().isPremium // Security pillar: only admin/server should change this
                     && incoming().diff(existing()).affectedKeys().hasOnly([
                          'points', 'sobrietyDate', 'recoveryStartDate', 'displayName', 'photoURL', 'lastGratitudeAt', 'requestCount', 'lastSobrietyCheck', 'completedSteps', 'email', 'higherPower', 'sponsorGender', 'birthDate', 'currentStep', 'language', 'challenges'
                        ]);
@@ -73,6 +86,10 @@ service cloud.firestore {
     // -------------------------------------------------------------------------
     // GRATITUDES
     // -------------------------------------------------------------------------
+    function isValidIdRef(id) {
+        return id is string && id.size() > 0 && id.size() <= 128;
+    }
+
     function isValidGratitude(data) {
       return data.userId is string && data.userId.size() <= 128
           && data.text is string && data.text.size() <= 1000
@@ -81,9 +98,9 @@ service cloud.firestore {
 
     match /gratitudes/{gratitudeId} {
       allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow get: if isOwner(resource.data.userId);
-      allow create: if isOwner(incoming().userId) && isValidGratitude(incoming());
-      allow delete: if isOwner(existing().userId);
+      allow get: if isOwner(resource.data.userId) && isValidId(gratitudeId);
+      allow create: if isOwner(incoming().userId) && isVerified() && isValidId(gratitudeId) && isValidGratitude(incoming());
+      allow delete: if isOwner(existing().userId) && isValidId(gratitudeId);
     }
 
     // -------------------------------------------------------------------------
@@ -98,12 +115,12 @@ service cloud.firestore {
 
     match /steps/{stepId} {
       allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow get: if isOwner(resource.data.userId);
-      allow create: if isOwner(incoming().userId) && isValidStep(incoming());
-      allow update: if isOwner(existing().userId) && isValidStep(incoming())
+      allow get: if isOwner(resource.data.userId) && isValidId(stepId);
+      allow create: if isOwner(incoming().userId) && isVerified() && isValidId(stepId) && isValidStep(incoming());
+      allow update: if isOwner(existing().userId) && isVerified() && isValidId(stepId) && isValidStep(incoming())
                     && incoming().userId == existing().userId
                     && incoming().stepNumber == existing().stepNumber;
-      allow delete: if isOwner(existing().userId);
+      allow delete: if isOwner(existing().userId) && isValidId(stepId);
     }
 
     // -------------------------------------------------------------------------
@@ -112,15 +129,15 @@ service cloud.firestore {
     function isValidMessage(data) {
       return data.userId is string && data.userId.size() <= 128
           && data.role in ['user', 'model']
-          && data.content is string && data.content.size() <= 10000
+          && data.content is string && data.content.size() <= 15000
           && data.createdAt is string;
     }
 
     match /messages/{messageId} {
       allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow get: if isOwner(resource.data.userId);
-      allow create: if isOwner(incoming().userId) && isValidMessage(incoming());
-      allow delete: if isOwner(existing().userId);
+      allow get: if isOwner(resource.data.userId) && isValidId(messageId);
+      allow create: if isOwner(incoming().userId) && isVerified() && isValidId(messageId) && isValidMessage(incoming());
+      allow delete: if isOwner(existing().userId) && isValidId(messageId);
     }
   }
 }

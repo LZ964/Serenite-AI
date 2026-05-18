@@ -110,6 +110,14 @@ const Landing = () => {
           >
             {t.heroTitle}
           </motion.h1>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.15 }}
+            className="text-[10px] font-bold text-natural-accent uppercase tracking-[0.3em] font-mono"
+          >
+            Version Beta • Early Access
+          </motion.div>
 
           <motion.p 
             initial={{ opacity: 0, y: 20 }}
