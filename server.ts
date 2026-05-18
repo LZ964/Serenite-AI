@@ -5,6 +5,7 @@ import { GoogleGenAI } from '@google/genai';
 import Stripe from 'stripe';
 import * as cheerio from 'cheerio';
 import admin from 'firebase-admin';
+import * as fs from 'fs';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 
@@ -538,26 +539,12 @@ async function startServer() {
   } else {
     // In production, serve the built static files
     const distPath = path.resolve(process.cwd(), 'dist');
-    console.log(`[PROD] Production mode detected.`);
-    console.log(`[PROD] Static files path: ${distPath}`);
-    console.log(`[PROD] Current working directory: ${process.cwd()}`);
-    
-    // Simple file existence check to help debugging
-    import('fs').then(fs => {
-      const indexFile = path.join(distPath, 'index.html');
-      if (fs.existsSync(indexFile)) {
-        console.log(`[PROD] SUCCESS: index.html found at ${indexFile}`);
-      } else {
-        console.error(`[PROD] WARNING: index.html NOT found at ${indexFile}`);
-        // List files in dist to help debug
-        try {
-          const files = fs.readdirSync(distPath);
-          console.log(`[PROD] Files in dist: ${files.join(', ')}`);
-        } catch (e) {
-          console.error(`[PROD] Could not read dist directory: ${e}`);
-        }
-      }
-    }).catch(err => console.error("FS import failed", err));
+    console.log(`[PROD] Mode static: ${distPath}`);
+
+    // Serve static files first
+    app.use(express.static(distPath, {
+      index: false
+    }));
     
     // Logging middleware for production to debug requests
     app.use((req, res, next) => {
@@ -566,30 +553,30 @@ async function startServer() {
       next();
     });
 
-    // Serve static files
-    app.use(express.static(distPath, {
-      index: false // We handle the root and fallbacks via our wildcard route
-    }));
-
-    // Root route should serve index.html
+    // Root route
     app.get('/', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+      const indexPath = path.join(distPath, 'index.html');
+      if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+      } else {
+        res.status(404).send("index.html not found in dist. Check build.");
+      }
     });
 
-    // SPA fallback - Use '*all' for Express 5 catch-all
-    app.get('*all', (req, res) => {
+    // SPA fallback
+    app.get('*', (req, res) => {
       const indexPath = path.join(distPath, 'index.html');
       res.sendFile(indexPath, (err) => {
         if (err) {
           console.error(`[PROD] Error sending index.html: ${err.message}`);
-          res.status(404).send("Application files not found. Please ensure the build completed successfully.");
+          res.status(404).send("Application files not found.");
         }
       });
     });
   }
 
   app.listen(Number(PORT), '0.0.0.0', () => {
-    console.log(`🚀 Server started on port ${PORT}`);
+    console.log(`🚀 Server started on http://0.0.0.0:${PORT}`);
     console.log(`Environment: ${process.env.NODE_ENV}`);
   });
 }

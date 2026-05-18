@@ -92,7 +92,7 @@ const Chat: React.FC<ChatProps> = ({ user, userData, lang, trigger, onTriggerHan
   const [pinInput, setPinInput] = useState('');
   const [sponsorGender, setSponsorGender] = useState<'parrain' | 'marraine'>(userData?.sponsorGender || 'parrain');
   const [inputText, setInputText] = useState('');
-  const [showVoiceMode, setShowVoiceMode] = useState(true);
+  const [showVoiceMode, setShowVoiceMode] = useState(false);
   const [pointNotification, setPointNotification] = useState<{points: number, reason: string} | null>(null);
   const [visionMode, setVisionMode] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -536,108 +536,6 @@ const Chat: React.FC<ChatProps> = ({ user, userData, lang, trigger, onTriggerHan
       exit={{ opacity: 0, y: -20 }}
       className="flex flex-col h-[calc(100vh-12rem)] md:h-[calc(100vh-14rem)] bg-white rounded-[2rem] border border-natural-line shadow-xl shadow-natural-primary/5 overflow-hidden relative"
     >
-      {/* Full Screen Video Call Mode */}
-      <AnimatePresence>
-        {isFullScreen && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center"
-          >
-            {/* Sponsor Video (Fictional) */}
-            <div className="absolute inset-0 w-full h-full bg-stone-900">
-              <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
-                <motion.img 
-                  animate={{ 
-                    scale: isSpeaking ? [1, 1.02, 1] : 1,
-                    x: [0, 2, -2, 0],
-                    y: [0, -2, 2, 0]
-                  }}
-                  transition={{ 
-                    duration: 10, 
-                    repeat: Infinity, 
-                    ease: "easeInOut" 
-                  }}
-                  src={sponsorImage}
-                  alt="Sponsor"
-                  className="w-full h-full object-cover opacity-90"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/40" />
-                
-                {/* Visual feedback for AI Thinking/Watching */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
-                  {isTyping && (
-                    <motion.div 
-                      animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0.6, 0.3] }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                      className="w-64 h-64 bg-natural-primary/20 rounded-full blur-[80px]"
-                    />
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* User Preview (PIP) */}
-            <motion.div 
-              drag
-              dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
-              className="absolute top-8 right-8 w-64 aspect-video rounded-3xl overflow-hidden border-2 border-white/20 shadow-2xl bg-stone-900 group"
-            >
-              <video 
-                ref={videoRef} 
-                autoPlay 
-                playsInline 
-                muted 
-                className="w-full h-full object-cover -scale-x-100"
-              />
-              <div className="absolute top-2 left-2 flex items-center gap-1.5 bg-black/40 backdrop-blur-sm px-2 py-0.5 rounded-full">
-                <div className="h-1.5 w-1.5 bg-emerald-400 rounded-full animate-pulse" />
-                <span className="text-[8px] font-bold text-white uppercase tracking-widest">Toi</span>
-              </div>
-            </motion.div>
-
-            {/* Controls */}
-            <div className="absolute bottom-12 left-0 right-0 flex items-center justify-center gap-6">
-              <button 
-                onClick={() => setVisionMode(!visionMode)}
-                className={`p-6 rounded-full transition-all ${visionMode ? 'bg-emerald-500 text-white' : 'bg-white/10 text-white hover:bg-white/20 border border-white/20'}`}
-              >
-                {visionMode ? <Camera size={32} /> : <CameraOff size={32} />}
-              </button>
-
-              <button 
-                onClick={toggleListening}
-                className={`w-24 h-24 rounded-full flex items-center justify-center transition-all shadow-2xl relative z-10 ${
-                  isListening 
-                    ? 'bg-red-500 text-white shadow-red-500/50 scale-110' 
-                    : 'bg-white text-natural-ink hover:scale-105 active:scale-95'
-                }`}
-              >
-                {isListening ? <MicOff size={38} className="animate-pulse" /> : <Mic size={38} />}
-              </button>
-
-              <button 
-                onClick={() => setIsFullScreen(false)}
-                className="p-6 rounded-full bg-red-600 text-white hover:bg-red-700 transition-all shadow-xl"
-              >
-                <X size={32} />
-              </button>
-            </div>
-
-            <div className="absolute top-8 left-8 flex items-center gap-4">
-              <div className="h-12 w-12 bg-natural-primary rounded-2xl flex items-center justify-center text-white shadow-xl">
-                <Heart size={24} />
-              </div>
-              <div className="text-white">
-                <p className="font-bold text-lg">{lang === 'fr' ? `Appel avec ton ${sponsorGender}` : `Call with your sponsor`}</p>
-                <p className="text-xs text-white/60 font-mono tracking-widest">LIVE ENCRYPTED</p>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* Crisis Info Modal */}
       <AnimatePresence>
         {showCrisisInfo && (
@@ -666,7 +564,7 @@ const Chat: React.FC<ChatProps> = ({ user, userData, lang, trigger, onTriggerHan
                 </button>
               </div>
               <h3 className="text-xl font-bold text-natural-ink">
-                {lang === 'fr' ? 'Burning desire - SOS!' : 'Burning desire - SOS!'}
+                {lang === 'fr' ? 'SOS - Besoin d\'aide ?' : 'SOS - Need help?'}
               </h3>
               <p className="text-sm text-natural-accent leading-relaxed">
                 {lang === 'fr' 
@@ -723,8 +621,8 @@ const Chat: React.FC<ChatProps> = ({ user, userData, lang, trigger, onTriggerHan
               <h3 className="text-xl font-bold text-natural-ink">{lang === 'fr' ? 'Conversations Chiffrées' : 'Encrypted Conversations'}</h3>
               <p className="text-xs text-natural-accent leading-relaxed">
                 {lang === 'fr' 
-                  ? 'Afin de garantir que vous seul puissiez lire vos échanges, veuillez définir ou saisir votre clé de confidentialité (utilisez un PIN ou un mot de passe simple).'
-                  : 'To ensure that only you can read your exchanges, please set or enter your privacy key (use a simple PIN or password).'
+                  ? 'Afin de garantir que vous seul puissiez lire vos échanges, veuillez définir ou saisir votre clé de confidentialité.'
+                  : 'To ensure that only you can read your exchanges, please set or enter your privacy key.'
                 }
               </p>
               <div className="space-y-4">
@@ -741,12 +639,6 @@ const Chat: React.FC<ChatProps> = ({ user, userData, lang, trigger, onTriggerHan
                 >
                   {lang === 'fr' ? 'Déverrouiller' : 'Unlock'}
                 </button>
-                <p className="text-[10px] text-natural-accent italic">
-                  {lang === 'fr' 
-                    ? 'Note: Cette clé n\'est jamais envoyée au serveur. Si vous la perdez, vos anciennes conversations seront illisibles.'
-                    : 'Note: This key is never sent to the server. If you lose it, your old conversations will be unreadable.'
-                  }
-                </p>
               </div>
             </div>
           </motion.div>
@@ -757,32 +649,23 @@ const Chat: React.FC<ChatProps> = ({ user, userData, lang, trigger, onTriggerHan
       <div className="p-6 border-b border-natural-line flex items-center justify-between bg-natural-sidebar">
         <div className="flex items-center gap-4">
           <div className="relative">
-            <button 
-              onClick={() => setIsFullScreen(true)}
-              className="group relative h-12 w-12 bg-natural-primary rounded-2xl flex items-center justify-center shadow-lg shadow-natural-primary/20 hover:scale-105 transition-all overflow-hidden"
-            >
-              <Heart className="h-6 w-6 text-white group-hover:hidden" />
-              <div className="absolute inset-0 hidden group-hover:flex items-center justify-center bg-black/20">
-                <Eye size={20} className="text-white" />
-              </div>
-            </button>
+            <div className="h-12 w-12 bg-natural-primary rounded-2xl flex items-center justify-center shadow-lg shadow-natural-primary/20">
+              <Heart className="h-6 w-6 text-white" />
+            </div>
             <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-emerald-400 border-2 border-white rounded-full shadow-sm" />
           </div>
           <div>
             <h3 className="font-bold text-natural-ink leading-tight">
               {lang === 'fr' 
-                ? `Votre ${sponsorGender === 'parrain' ? 'Parrain' : 'Marraine'} Virtuel${sponsorGender === 'marraine' ? 'le' : ''}`
-                : `Your Virtual ${sponsorGender === 'parrain' ? 'Sponsor' : 'Sponsor'}`
+                ? `Votre ${sponsorGender === 'parrain' ? 'Parrain' : 'Marraine'}`
+                : `Your ${sponsorGender === 'parrain' ? 'Sponsor' : 'Sponsor'}`
               }
             </h3>
             <div className="flex items-center gap-1.5 mt-0.5">
               <div className="h-1.5 w-1.5 bg-emerald-400 rounded-full animate-pulse" />
-              <button 
-                onClick={() => setIsFullScreen(true)}
-                className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 hover:underline"
-              >
-                {lang === 'fr' ? 'En ligne • Cliquer pour voir' : 'Online • Click to see'}
-              </button>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600">
+                {lang === 'fr' ? 'En ligne' : 'Online'}
+              </span>
             </div>
           </div>
         </div>
@@ -792,7 +675,7 @@ const Chat: React.FC<ChatProps> = ({ user, userData, lang, trigger, onTriggerHan
             className="px-3 py-1.5 border border-orange-200 bg-orange-50 text-orange-600 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all hover:bg-orange-100 flex items-center gap-2"
           >
             <AlertTriangle size={14} />
-            Burning desire - SOS!
+            SOS!
           </button>
           
           <div className="bg-natural-line/50 p-1 rounded-xl flex gap-1 border border-natural-line hidden md:flex">
@@ -809,13 +692,6 @@ const Chat: React.FC<ChatProps> = ({ user, userData, lang, trigger, onTriggerHan
               {lang === 'fr' ? 'Marraine' : 'Female'}
             </button>
           </div>
-          <button 
-            onClick={() => setVoiceEnabled(!voiceEnabled)}
-            className={`p-2.5 rounded-full transition-all ${voiceEnabled ? 'bg-natural-primary text-white' : 'bg-natural-line text-natural-accent'}`}
-            title={voiceEnabled ? "Désactiver la voix" : "Activer la voix"}
-          >
-            {voiceEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
-          </button>
         </div>
       </div>
 
@@ -846,12 +722,6 @@ const Chat: React.FC<ChatProps> = ({ user, userData, lang, trigger, onTriggerHan
               </div>
               <p className="text-[10px] font-medium text-white/70 uppercase tracking-widest truncate max-w-[200px]">{pointNotification.reason}</p>
             </div>
-            <motion.div 
-              initial={{ width: "100%" }}
-              animate={{ width: "0%" }}
-              transition={{ duration: 5, ease: "linear" }}
-              className="absolute bottom-0 left-0 h-1 bg-natural-primary rounded-full"
-            />
           </motion.div>
         )}
       </AnimatePresence>
@@ -893,179 +763,29 @@ const Chat: React.FC<ChatProps> = ({ user, userData, lang, trigger, onTriggerHan
         )}
       </div>
 
-      {/* Camera Preview Overlay moved to floating position */}
-      <AnimatePresence>
-        {visionMode && !isFullScreen && (
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            className="absolute top-24 right-6 z-40 flex flex-col gap-4 pointer-events-none"
-          >
-            {/* Sponsor Preview */}
-            <div className="w-56 aspect-video rounded-2xl overflow-hidden border-2 border-natural-primary shadow-2xl bg-stone-900 relative pointer-events-auto">
-              <motion.img 
-                animate={{ 
-                  scale: isSpeaking ? [1, 1.05, 1] : 1,
-                }}
-                transition={{ duration: 5, repeat: Infinity }}
-                src={sponsorImage}
-                className="w-full h-full object-cover"
-                alt="Sponsor"
-              />
-              <div className="absolute top-2 left-2 flex items-center gap-1.5 bg-black/40 backdrop-blur-sm px-2 py-0.5 rounded-full">
-                <div className="h-1.5 w-1.5 bg-natural-primary rounded-full animate-pulse" />
-                <span className="text-[8px] font-bold text-white uppercase tracking-widest">
-                  {sponsorGender === 'parrain' ? 'Parrain (Live)' : 'Marraine (Live)'}
-                </span>
-              </div>
-            </div>
-
-            {/* User Preview */}
-            <div className="w-56 aspect-video rounded-2xl overflow-hidden border-2 border-emerald-500 shadow-2xl bg-black relative pointer-events-auto">
-              <video 
-                ref={videoRef} 
-                autoPlay 
-                playsInline 
-                muted 
-                className="w-full h-full object-cover -scale-x-100"
-              />
-              <div className="absolute top-2 left-2 flex items-center gap-1.5 bg-black/40 backdrop-blur-sm px-2 py-0.5 rounded-full">
-                <div className="h-1.5 w-1.5 bg-emerald-400 rounded-full animate-pulse" />
-                <span className="text-[8px] font-bold text-white uppercase tracking-widest">Toi</span>
-              </div>
-              <canvas ref={canvasRef} className="hidden" />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* Chat Footer */}
       <div className="p-6 bg-natural-sidebar border-t border-natural-line">
-        {showVoiceMode ? (
-          <div className="flex flex-col items-center gap-6">
-            <AnimatePresence mode="wait">
-              {!isListening && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="text-center space-y-2"
-                >
-                  <p className="text-sm font-bold text-natural-ink tracking-wide">
-                    {isSpeaking 
-                      ? (lang === 'fr' ? `Votre ${sponsorGender} vous parle...` : `Your sponsor is speaking...`)
-                      : (lang === 'fr' ? `Prêt à échanger de vive voix ?` : `Ready to talk live?`)
-                    }
-                  </p>
-                  <button 
-                    onClick={() => setShowVoiceMode(false)}
-                    className="text-[10px] text-natural-primary font-bold uppercase tracking-[0.2em] hover:underline"
-                  >
-                    {lang === 'fr' ? 'Utiliser le clavier' : 'Use keyboard'}
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <div className="relative flex items-center justify-center gap-8">
+        <div className="flex flex-col gap-4">
+          <div className="flex gap-3">
+            <div className="flex-1 relative">
+              <input 
+                type="text"
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && (handleSend(inputText), setInputText(''))}
+                placeholder={t.writeToSponsor}
+                className="w-full bg-white border border-natural-line rounded-2xl px-6 py-4 outline-none focus:ring-2 focus:ring-natural-primary transition-all font-medium pr-16"
+              />
               <button 
-                onClick={() => setVisionMode(!visionMode)}
-                className={`w-16 h-16 rounded-full flex flex-col items-center justify-center transition-all shadow-xl relative z-10 ${
-                  visionMode 
-                    ? 'bg-emerald-500 text-white shadow-emerald-500/30' 
-                    : 'bg-natural-line text-natural-accent hover:bg-natural-line/80'
-                }`}
+                onClick={() => { handleSend(inputText); setInputText(''); }}
+                disabled={!inputText.trim() || isTyping}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-3 bg-natural-primary text-white rounded-xl shadow-lg shadow-natural-primary/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
               >
-                {visionMode ? <CameraOff size={24} /> : <Camera size={24} />}
-                <span className="text-[8px] font-bold uppercase tracking-widest mt-1">Vision</span>
+                <Send size={18} />
               </button>
-
-              <div className="relative flex items-center justify-center">
-                <AnimatePresence>
-                  {(isListening || isSpeaking) && (
-                    <>
-                      <motion.div 
-                        initial={{ scale: 0.8, opacity: 0 }}
-                        animate={{ 
-                          scale: [1, 2.5, 1.5],
-                          opacity: [0.8, 0.4, 0.8],
-                          rotate: 360
-                        }}
-                        transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-                        className="absolute w-44 h-44 bg-gradient-to-tr from-natural-primary via-natural-secondary to-emerald-400 rounded-full blur-[30px] opacity-60 mix-blend-screen"
-                      />
-                      <motion.div 
-                        initial={{ scale: 0.8, opacity: 0 }}
-                        animate={{ 
-                          scale: [1.5, 3.0, 1.5],
-                          opacity: [0.6, 0.3, 0.6],
-                          rotate: -360
-                        }}
-                        transition={{ duration: 5, repeat: Infinity, ease: "linear" }}
-                        className="absolute w-56 h-56 bg-gradient-to-bl from-natural-secondary via-emerald-400 to-natural-primary rounded-full blur-[40px] opacity-50 mix-blend-screen"
-                      />
-                    </>
-                  )}
-                </AnimatePresence>
-
-                <button 
-                  onClick={toggleListening}
-                  disabled={isSpeaking || isTyping}
-                  className={`w-24 h-24 rounded-full flex items-center justify-center transition-all shadow-2xl relative z-10 ${
-                    isListening 
-                      ? 'bg-red-500 text-white shadow-red-500/50 scale-110' 
-                      : 'bg-natural-primary text-white hover:bg-natural-secondary shadow-natural-primary/40 active:scale-95 disabled:opacity-30'
-                  }`}
-                >
-                  {isListening ? <MicOff size={38} className="animate-pulse" /> : <Mic size={38} />}
-                </button>
-              </div>
             </div>
           </div>
-        ) : (
-          <div className="flex flex-col gap-4">
-            <div className="flex gap-3">
-              <div className="flex flex-col gap-2">
-                <button 
-                  onClick={() => setShowVoiceMode(true)}
-                  className="p-4 bg-natural-primary/10 text-natural-primary rounded-2xl hover:bg-natural-primary/20 transition-all shadow-sm"
-                  title={lang === 'fr' ? 'Passer au mode vocal' : 'Switch to voice mode'}
-                >
-                  <Mic size={24} />
-                </button>
-                <button 
-                  onClick={() => setVisionMode(!visionMode)}
-                  className={`p-4 rounded-2xl transition-all shadow-sm ${
-                    visionMode 
-                      ? 'bg-emerald-500 text-white shadow-emerald-500/20' 
-                      : 'bg-natural-line/30 text-natural-accent hover:bg-natural-line/50'
-                  }`}
-                  title={lang === 'fr' ? 'Activer/Désactiver Vision' : 'Toggle Vision'}
-                >
-                  {visionMode ? <CameraOff size={24} /> : <Camera size={24} />}
-                </button>
-              </div>
-              <div className="flex-1 relative">
-                <input 
-                  type="text"
-                  value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && (handleSend(inputText), setInputText(''))}
-                  placeholder={t.writeToSponsor}
-                  className="w-full bg-white border border-natural-line rounded-2xl px-6 py-4 outline-none focus:ring-2 focus:ring-natural-primary transition-all font-medium pr-16"
-                />
-                <button 
-                  onClick={() => { handleSend(inputText); setInputText(''); }}
-                  disabled={!inputText.trim() || isTyping}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-3 bg-natural-primary text-white rounded-xl shadow-lg shadow-natural-primary/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
-                >
-                  <Send size={18} />
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        </div>
 
         {!userData?.isPremium && (
           <div className="mt-6 flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-widest text-natural-accent opacity-60">
