@@ -1,0 +1,80 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Stores user information, points, and subscription status.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "points": { "type": "integer" },
+        "sobrietyDate": { "type": "string", "format": "date-time" },
+        "isPremium": { "type": "boolean" },
+        "requestCount": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "lastGratitudeAt": { "type": "string", "format": "date-time" },
+        "lastSobrietyCheck": { "type": "string", "format": "date-time" },
+        "completedSteps": { 
+          "type": "array",
+          "items": { "type": "integer" }
+        }
+      },
+      "required": ["uid", "email", "points", "isPremium", "requestCount"]
+    },
+    "Gratitude": {
+      "title": "Gratitude entry",
+      "description": "Daily gratitude listed by user for points.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "text", "createdAt"]
+    },
+    "StepProgress": {
+      "title": "12 Step Progress",
+      "description": "Tracking completion of the 12 steps.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "stepNumber": { "type": "integer" },
+        "completedAt": { "type": "string", "format": "date-time" },
+        "notes": { "type": "string" }
+      },
+      "required": ["userId", "stepNumber", "completedAt"]
+    },
+    "ChatMessage": {
+      "title": "Chat Message",
+      "description": "History of conversations for premium users.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "model"] },
+        "content": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "role", "content", "createdAt"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "Individual user document."
+    },
+    "gratitudes/{gratitudeId}": {
+      "schema": "Gratitude",
+      "description": "User gratitude entries."
+    },
+    "steps/{stepId}": {
+      "schema": "StepProgress",
+      "description": "Step completion records."
+    },
+    "messages/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Chat history."
+    }
+  }
+}
