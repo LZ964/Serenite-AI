@@ -1,6 +1,6 @@
 import express from 'express';
 import path from 'path';
-import { createServer as createViteServer } from 'vite';
+// No top-level Vite import
 import { GoogleGenAI } from '@google/genai';
 import Stripe from 'stripe';
 import * as cheerio from 'cheerio';
@@ -518,18 +518,21 @@ async function startServer() {
     }
   });
 
-  // Vite Middleware
+  // Vite middleware
   if (process.env.NODE_ENV !== 'production') {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), 'dist');
+    // In production, server.cjs is in the dist folder, so __dirname is the dist folder
+    const distPath = __dirname;
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+      const indexPath = path.join(distPath, 'index.html');
+      res.sendFile(indexPath);
     });
   }
 
