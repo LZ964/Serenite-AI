@@ -13,7 +13,7 @@ service cloud.firestore {
     }
 
     function isVerified() {
-      return isSignedIn() && request.auth.token.email_verified == true;
+      return isSignedIn() && (request.auth.token.get('email_verified', false) == true || request.auth.token.get('firebase', {}).get('sign_in_provider', '') == 'google.com');
     }
 
     function isValidId(id) {
@@ -44,40 +44,38 @@ service cloud.firestore {
     // USERS
     // -------------------------------------------------------------------------
     function isValidUser(data) {
-      return data.uid is string && data.uid.size() <= 128
-          && (data.email == null || (data.email is string && data.email.size() <= 256))
-          && data.points is int && data.points >= 0
-          && data.isPremium is bool
-          && data.requestCount is int
-          && (data.displayName == null || (data.displayName is string && data.displayName.size() <= 500))
-          && (data.photoURL == null || (data.photoURL is string && data.photoURL.size() <= 2048))
-          && (data.sobrietyDate == null || data.sobrietyDate is string)
-          && (data.recoveryStartDate == null || data.recoveryStartDate is string)
-          && (data.lastGratitudeAt == null || data.lastGratitudeAt is string)
-          && (data.lastSobrietyCheck == null || data.lastSobrietyCheck is string)
-          && (data.higherPower == null || (data.higherPower is string && data.higherPower.size() <= 100))
-          && (data.sponsorGender == null || data.sponsorGender in ['parrain', 'marraine'])
-          && (data.birthDate == null || data.birthDate is string)
-          && (data.currentStep == null || data.currentStep is string)
-          && (data.language == null || data.language is string)
-          && (data.challenges == null || (data.challenges is list && data.challenges.size() <= 50))
-          && (data.createdAt == null || data.createdAt is string)
-          && (data.completedSteps == null || (data.completedSteps is list && data.completedSteps.size() <= 12));
+      return data.get('uid', '') is string && data.get('uid', '').size() <= 128
+          && (data.get('email', null) == null || (data.get('email', '') is string && data.get('email', '').size() <= 256))
+          && data.get('points', 0) is int && data.get('points', 0) >= 0
+          && data.get('isPremium', false) is bool
+          && data.get('requestCount', 0) is int
+          && (data.get('sobrietyDate', null) == null || data.get('sobrietyDate', '') is string)
+          && (data.get('recoveryStartDate', null) == null || data.get('recoveryStartDate', '') is string)
+          && (data.get('displayName', null) == null || (data.get('displayName', '') is string && data.get('displayName', '').size() <= 512))
+          && (data.get('photoURL', null) == null || (data.get('photoURL', '') is string && data.get('photoURL', '').size() <= 2048))
+          && (data.get('lastGratitudeAt', null) == null || data.get('lastGratitudeAt', '') is string)
+          && (data.get('lastSobrietyCheck', null) == null || data.get('lastSobrietyCheck', '') is string)
+          && (data.get('higherPower', null) == null || (data.get('higherPower', '') is string && data.get('higherPower', '').size() <= 100))
+          && (data.get('sponsorGender', null) == null || data.get('sponsorGender', '') in ['parrain', 'marraine'])
+          && (data.get('birthDate', null) == null || data.get('birthDate', '') is string)
+          && (data.get('currentStep', null) == null || data.get('currentStep', '') is string)
+          && (data.get('language', null) == null || data.get('language', '') is string)
+          && (data.get('challenges', null) == null || (data.get('challenges', []) is list && data.get('challenges', []).size() <= 50))
+          && (data.get('createdAt', null) == null || data.get('createdAt', '') is string)
+          && (data.get('completedSteps', null) == null || (data.get('completedSteps', []) is list && data.get('completedSteps', []).size() <= 12));
     }
 
     match /users/{userId} {
       allow get: if isOwner(userId) && isValidId(userId);
       allow create: if isOwner(userId) && isValidId(userId) && isVerified()
                     && isValidUser(incoming()) 
-                    && incoming().isPremium == false
-                    && incoming().points == 0
-                    && incoming().requestCount == 0
-                    && incoming().keys().hasAll(['uid', 'points', 'isPremium', 'requestCount'])
-                    && incoming().keys().size() <= 20;
+                    && incoming().get('isPremium', false) == false
+                    && incoming().get('points', 0) == 0
+                    && incoming().get('requestCount', 0) == 0;
       allow update: if isOwner(userId) && isValidId(userId) && isVerified()
                     && isValidUser(incoming())
                     && incoming().uid == userId // Immutable
-                    && incoming().isPremium == existing().isPremium // Security pillar: only admin/server should change this
+                    && incoming().get('isPremium', false) == existing().get('isPremium', false) // Security pillar: only admin/server should change this
                     && incoming().diff(existing()).affectedKeys().hasOnly([
                          'points', 'sobrietyDate', 'recoveryStartDate', 'displayName', 'photoURL', 'lastGratitudeAt', 'requestCount', 'lastSobrietyCheck', 'completedSteps', 'email', 'higherPower', 'sponsorGender', 'birthDate', 'currentStep', 'language', 'challenges'
                        ]);

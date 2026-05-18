@@ -57,7 +57,7 @@ const getStripe = () => {
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = process.env.PORT || 3000;
 
   // Stripe Webhook needs raw body
   app.post('/api/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
@@ -536,8 +536,9 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
+  app.listen(Number(PORT), '0.0.0.0', () => {
+    console.log(`🚀 Server started on port ${PORT}`);
+    console.log(`Environment: ${process.env.NODE_ENV}`);
   });
 }
 

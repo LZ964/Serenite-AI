@@ -24,15 +24,14 @@ RUN npm run build
 FROM node:22-slim
 WORKDIR /app
 
-# Définition de l'environnement pour le runtime
 ENV NODE_ENV=production
+ENV PORT=3000
 
-# On ne copie que le nécessaire du build
-# Le serveur est dans dist/server.cjs
+# Copie depuis le build
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/package*.json ./
 
-# On installe seulement les dépendances de production
+# Installation des dépendances de prod seulement
 RUN npm install --omit=dev
 
 # Exposition du port
