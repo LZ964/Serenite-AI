@@ -2,19 +2,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Send, 
-  Mic, 
-  MicOff, 
-  Volume2, 
-  VolumeX, 
   ChevronRight,
   Info,
   Heart,
   AlertTriangle,
   X,
-  Phone,
-  Camera,
-  CameraOff,
-  Eye,
   Star,
   Trophy
 } from 'lucide-react';
@@ -84,78 +76,13 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
 const Chat: React.FC<ChatProps> = ({ user, userData, lang, trigger, onTriggerHandled }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isTyping, setIsTyping] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [showCrisisInfo, setShowCrisisInfo] = useState(false);
   const [encryptionPin, setEncryptionPin] = useState<string | null>(sessionStorage.getItem('encryption_pin'));
   const [pinInput, setPinInput] = useState('');
   const [sponsorGender, setSponsorGender] = useState<'parrain' | 'marraine'>(userData?.sponsorGender || 'parrain');
   const [inputText, setInputText] = useState('');
-  const [showVoiceMode, setShowVoiceMode] = useState(false);
-  const [pointNotification, setPointNotification] = useState<{points: number, reason: string} | null>(null);
-  const [visionMode, setVisionMode] = useState(false);
-  const [isFullScreen, setIsFullScreen] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const t = translations[lang];
-
-  const recognitionRef = useRef<any>(null);
-
-  useEffect(() => {
-    if (visionMode) {
-      startCamera();
-    } else {
-      stopCamera();
-    }
-    return () => stopCamera();
-  }, [visionMode]);
-
-  const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'user' },
-        audio: false 
-      });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-      streamRef.current = stream;
-    } catch (err) {
-      console.error("Error accessing camera:", err);
-      setVisionMode(false);
-      alert(lang === 'fr' ? "Impossible d'accéder à la caméra." : "Unable to access camera.");
-    }
-  };
-
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-  };
-
-  const captureFrame = (): { data: string, mimeType: string } | null => {
-    if (!videoRef.current || !canvasRef.current || !visionMode) return null;
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    
-    // Use natural video dimensions for aspect ratio
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    // Convert to base64 jpeg
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
-    return {
-      data: dataUrl.split(',')[1],
-      mimeType: 'image/jpeg'
-    };
-  };
 
   useEffect(() => {
     // Handle daily review trigger
@@ -168,7 +95,6 @@ const Chat: React.FC<ChatProps> = ({ user, userData, lang, trigger, onTriggerHan
         createdAt: new Date().toISOString()
       };
       setMessages(prev => [...prev, reviewMessage]);
-      speak(reviewMessage.content);
       if (onTriggerHandled) onTriggerHandled();
       return;
     }
@@ -195,6 +121,8 @@ const Chat: React.FC<ChatProps> = ({ user, userData, lang, trigger, onTriggerHan
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, isTyping]);
+
+  const [pointNotification, setPointNotification] = useState<{points: number, reason: string} | null>(null);
 
   const loadHistory = async () => {
     if (!encryptionPin) return;
@@ -239,76 +167,6 @@ const Chat: React.FC<ChatProps> = ({ user, userData, lang, trigger, onTriggerHan
     }
   };
 
-  useEffect(() => {
-    // Force voices to load in some browsers
-    window.speechSynthesis.getVoices();
-    const handleVoicesChanged = () => {
-      window.speechSynthesis.getVoices();
-    };
-    window.speechSynthesis.addEventListener('voiceschanged', handleVoicesChanged);
-    return () => window.speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
-  }, []);
-
-  const speak = (text: string) => {
-    if (!voiceEnabled) return;
-    
-    // Stop any current speech
-    window.speechSynthesis.cancel();
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = lang === 'fr' ? 'fr-FR' : 'en-US';
-    
-    // Selection logic for narrative and expressive voices
-    const voices = window.speechSynthesis.getVoices();
-    
-    // Prioritize high-quality/enhanced voices, specifically looking for Canadian French (Quebec)
-    const frVoices = voices.filter(v => v.lang.startsWith('fr'));
-    const frCaVoices = voices.filter(v => v.lang === 'fr-CA' || v.lang.startsWith('fr-CA'));
-    
-    let preferredVoice = null;
-    if (sponsorGender === 'marraine') {
-      // Look for natural female voices (Quebec first)
-      preferredVoice = frCaVoices.find(v => (v.name.includes('femme') || v.name.includes('Female')))
-                    || frCaVoices[0]
-                    || frVoices.find(v => v.name.includes('Google') && (v.name.includes('femme') || v.name.includes('Female')))
-                    || frVoices.find(v => v.name.includes('Amelie') || v.name.includes('Hortense') || v.name.includes('Siri'))
-                    || frVoices.find(v => v.name.includes('Female'));
-    } else {
-      // Look for natural male voices (Quebec first)
-      preferredVoice = frCaVoices.find(v => (v.name.includes('homme') || v.name.includes('Male')))
-                    || frCaVoices[0]
-                    || frVoices.find(v => v.name.includes('Google') && (v.name.includes('homme') || v.name.includes('Male')))
-                    || frVoices.find(v => v.name.includes('Thomas') || v.name.includes('Paul') || v.name.includes('Siri'))
-                    || frVoices.find(v => v.name.includes('Male'));
-    }
-
-    // Fallback to any French voice if no specific gender-matched quality voice found
-    if (!preferredVoice) {
-      preferredVoice = frVoices.find(v => v.name.includes('Google') || v.name.includes('Enhanced')) || frVoices[0];
-    }
-
-    if (preferredVoice) {
-      utterance.voice = preferredVoice;
-    }
-
-    // "Narrative and Expressive" adjustments
-    // Rate: slightly slower for more empathy/thinking feel (0.85 to 0.95)
-    utterance.rate = 0.92; 
-    // Pitch: natural human variability
-    utterance.pitch = sponsorGender === 'marraine' ? 1.05 : 0.96;
-    // Volume: full immersion
-    utterance.volume = 1;
-
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = (e) => {
-      console.error("Speech synthesis error", e);
-      setIsSpeaking(false);
-    };
-
-    window.speechSynthesis.speak(utterance);
-  };
-
   const updateGender = async (gender: 'parrain' | 'marraine') => {
     setSponsorGender(gender);
     try {
@@ -316,71 +174,6 @@ const Chat: React.FC<ChatProps> = ({ user, userData, lang, trigger, onTriggerHan
       await updateDoc(doc(db, 'users', user.uid), { sponsorGender: gender });
     } catch (e) {
       handleFirestoreError(e, OperationType.UPDATE, `users/${user.uid}`);
-    }
-  };
-
-  const toggleListening = () => {
-    if (isListening) {
-      playBeep('stop');
-      recognitionRef.current?.stop();
-    } else {
-      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
-      if (!SpeechRecognition) {
-        alert("La reconnaissance vocale n'est pas supportée par votre navigateur (utilisez Chrome ou Safari).");
-        return;
-      }
-      
-      playBeep('start');
-      const recognition = new SpeechRecognition();
-      recognition.lang = lang === 'fr' ? 'fr-CA' : 'en-US';
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      
-      recognition.onstart = () => setIsListening(true);
-      recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        handleSend(transcript);
-      };
-      recognition.onend = () => {
-        setIsListening(false);
-      };
-      recognition.onerror = (e: any) => {
-        console.error("Speech recognition error", e);
-        setIsListening(false);
-      };
-      
-      recognitionRef.current = recognition;
-      recognition.start();
-    }
-  };
-
-  const playBeep = (type: 'start' | 'stop') => {
-    try {
-      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioContext) return;
-      const ctx = new AudioContext();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.type = 'sine';
-      if (type === 'start') {
-        osc.frequency.setValueAtTime(440, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.1);
-      } else {
-        osc.frequency.setValueAtTime(660, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(330, ctx.currentTime + 0.1);
-      }
-
-      gain.gain.setValueAtTime(0.05, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start();
-      osc.stop(ctx.currentTime + 0.15);
-    } catch (e) {
-      console.error("Audio beep error", e);
     }
   };
 
@@ -417,9 +210,6 @@ const Chat: React.FC<ChatProps> = ({ user, userData, lang, trigger, onTriggerHan
     }
 
     try {
-      // Capture frame if vision mode is on
-      const frame = visionMode ? captureFrame() : null;
-
       // Prepare history for API
       const history = messages.slice(-10).map(m => ({
         role: m.role,
@@ -433,7 +223,7 @@ const Chat: React.FC<ChatProps> = ({ user, userData, lang, trigger, onTriggerHan
           userId: user.uid,
           message: text,
           history,
-          images: frame ? [frame] : [],
+          images: [],
           currentStep: userData?.currentStep || '1',
           completedSteps: userData?.completedSteps || []
         })
@@ -479,7 +269,6 @@ const Chat: React.FC<ChatProps> = ({ user, userData, lang, trigger, onTriggerHan
       };
 
       setMessages(prev => [...prev, modelMessage]);
-      speak(data.response);
 
       if (userData?.isPremium && encryptionPin) {
         const encryptedModelContent = encryptData(data.response, encryptionPin);

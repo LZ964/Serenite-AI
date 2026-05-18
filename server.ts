@@ -41,50 +41,65 @@ const getAdminDb = () => {
         let rawContent = process.env.FIREBASE_SERVICE_ACCOUNT.trim();
         console.log(`[FIREBASE] Found FIREBASE_SERVICE_ACCOUNT env var. Length: ${rawContent.length} chars.`);
         
+        if (rawContent.length < 50) {
+          console.warn(`[FIREBASE] WARNING: FIREBASE_SERVICE_ACCOUNT is suspiciously short (${rawContent.length} chars). It's likely truncated. Check your platform settings!`);
+        }
+
         try {
-          // Check if it's Base64
-          if (!rawContent.startsWith('{') && !rawContent.startsWith('"') && !rawContent.startsWith("'")) {
-            console.log(`[FIREBASE] Detected potential Base64 encoding. Attempting to decode...`);
+          // Robust Base64 detection: If it doesn't look like JSON and is long, try decoding
+          if (!rawContent.startsWith('{') && rawContent.length > 100) {
+            console.log(`[FIREBASE] Attempting Base64 decode...`);
             try {
-              rawContent = Buffer.from(rawContent, 'base64').toString('utf8').trim();
-              console.log(`[FIREBASE] Successfully decoded Base64. New length: ${rawContent.length} chars.`);
+              const decoded = Buffer.from(rawContent, 'base64').toString('utf8').trim();
+              if (decoded.startsWith('{')) {
+                rawContent = decoded;
+                console.log(`[FIREBASE] Successfully decoded Base64. New length: ${rawContent.length}`);
+              } else {
+                console.warn(`[FIREBASE] Base64 decode resulted in non-JSON content. Ignoring decode.`);
+              }
             } catch (e) {
-              console.warn(`[FIREBASE] Base64 decoding failed, treating as raw string.`);
+              console.warn(`[FIREBASE] Base64 decoding failed.`);
             }
           }
 
-          // Remove potential wrapping quotes if pasted incorrectly via terminal/UI
+          // Remove potential wrapping quotes
           if (rawContent.startsWith("'") && rawContent.endsWith("'")) rawContent = rawContent.slice(1, -1).trim();
           if (rawContent.startsWith('"') && rawContent.endsWith('"')) rawContent = rawContent.slice(1, -1).trim();
           
           try {
             serviceAccount = JSON.parse(rawContent);
           } catch (parseError) {
-            // Heuristic for single-quoted "JSON" (which is actually a JS object)
-            // Replace '{ ' with '{" ' and similar
-            console.warn(`[FIREBASE] JSON.parse failed. Attempting to fix potential single quotes...`);
-            const semiFixed = rawContent
-              .replace(/([{,])\s*([a-zA-Z0-9_]+)\s*:/g, '$1"$2":') // Quote unquoted keys
-              .replace(/'/g, '"'); // Replace remaining single quotes with double (dangerous but sometimes works)
+            console.warn(`[FIREBASE] JSON.parse failed. Attempting to fix and parse again...`);
             
-            serviceAccount = JSON.parse(semiFixed);
-            console.log(`[FIREBASE] Successfully parsed with single-to-double quote fallback`);
+            // Try to find the first '{' and last '}' to handle potential prefix/suffix junk
+            const start = rawContent.indexOf('{');
+            const end = rawContent.lastIndexOf('}');
+            if (start !== -1 && end !== -1 && end > start) {
+              const sliced = rawContent.substring(start, end + 1);
+              try {
+                serviceAccount = JSON.parse(sliced);
+                console.log(`[FIREBASE] Successfully parsed after slicing to first/last braces.`);
+              } catch (e2) {
+                // If slicing didn't work, try the "fix quotes" heuristic
+                const semiFixed = sliced
+                  .replace(/([{,])\s*([a-zA-Z0-9_]+)\s*:/g, '$1"$2":')
+                  .replace(/'/g, '"');
+                serviceAccount = JSON.parse(semiFixed);
+                console.log(`[FIREBASE] Successfully parsed with quote-fix heuristic.`);
+              }
+            } else {
+              throw parseError;
+            }
           }
 
           projectId = serviceAccount.project_id || serviceAccount.projectId || projectId;
-          console.log(`[FIREBASE] Detected Project ID from FIREBASE_SERVICE_ACCOUNT: ${projectId}`);
-          if (serviceAccount.private_key) {
-            console.log(`[FIREBASE] Service Account has private_key`);
-          } else {
-            console.warn(`[FIREBASE] WARNING: serviceAccount object found but private_key is MISSING.`);
-          }
-        } catch (e) {
-          console.error(`[FIREBASE] Critical parsing error for FIREBASE_SERVICE_ACCOUNT.`);
-          console.error(`[FIREBASE] Error message: ${e.message}`);
-          console.error(`[FIREBASE] String starts with: ${rawContent.substring(0, 50)}...`);
-          console.error(`[FIREBASE] String ends with: ...${rawContent.substring(rawContent.length - 10)}`);
-          console.error(`[FIREBASE] Total processed length: ${rawContent.length}`);
-          console.error(`[FIREBASE] If your string is very short or doesn't end with '}', it might be truncated by your platform. Try Base64 encoding it!`);
+          console.log(`[FIREBASE] Success! Project ID: ${projectId}`);
+        } catch (e: any) {
+          console.error(`[FIREBASE] CRITICAL PARSING ERROR for FIREBASE_SERVICE_ACCOUNT.`);
+          console.error(`[FIREBASE] Error: ${e.message}`);
+          console.error(`[FIREBASE] First 30: ${rawContent.substring(0, 30)}`);
+          console.error(`[FIREBASE] Last 30: ${rawContent.substring(Math.max(0, rawContent.length - 30))}`);
+          console.error(`[FIREBASE] Please use Base64 encoding for the entire JSON file!`);
         }
       }
 
