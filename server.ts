@@ -38,12 +38,39 @@ const getAdminDb = () => {
 
       // 1. Try to read from FIREBASE_SERVICE_ACCOUNT env var first (JSON string)
       if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+        let rawJson = process.env.FIREBASE_SERVICE_ACCOUNT.trim();
         try {
-          serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+          // Remove potential wrapping quotes if pasted incorrectly via terminal/UI
+          if (rawJson.startsWith("'") && rawJson.endsWith("'")) rawJson = rawJson.slice(1, -1).trim();
+          if (rawJson.startsWith('"') && rawJson.endsWith('"')) rawJson = rawJson.slice(1, -1).trim();
+          
+          try {
+            serviceAccount = JSON.parse(rawJson);
+          } catch (parseError) {
+            // Heuristic for single-quoted "JSON" (which is actually a JS object)
+            // Replace '{ ' with '{" ' and similar
+            console.warn(`[FIREBASE] JSON.parse failed. Attempting to fix potential single quotes...`);
+            const semiFixed = rawJson
+              .replace(/([{,])\s*([a-zA-Z0-9_]+)\s*:/g, '$1"$2":') // Quote unquoted keys
+              .replace(/'/g, '"'); // Replace remaining single quotes with double (dangerous but sometimes works)
+            
+            serviceAccount = JSON.parse(semiFixed);
+            console.log(`[FIREBASE] Successfully parsed with single-to-double quote fallback`);
+          }
+
           projectId = serviceAccount.project_id || serviceAccount.projectId || projectId;
           console.log(`[FIREBASE] Detected Project ID from FIREBASE_SERVICE_ACCOUNT: ${projectId}`);
+          if (serviceAccount.private_key) {
+            console.log(`[FIREBASE] Service Account has private_key`);
+          } else {
+            console.warn(`[FIREBASE] WARNING: serviceAccount object found but private_key is MISSING.`);
+          }
         } catch (e) {
-          console.error(`[FIREBASE] Failed to parse FIREBASE_SERVICE_ACCOUNT JSON:`, e);
+          console.error(`[FIREBASE] Critical parsing error for FIREBASE_SERVICE_ACCOUNT.`);
+          console.error(`[FIREBASE] Error message: ${e.message}`);
+          console.error(`[FIREBASE] First 50 chars of string: ${rawJson.substring(0, 50)}...`);
+          console.error(`[FIREBASE] Last 10 chars of string: ...${rawJson.substring(rawJson.length - 10)}`);
+          console.error(`[FIREBASE] Make sure to paste the ENTIRE contents of the service account JSON file, starting with { and ending with }.`);
         }
       }
 
