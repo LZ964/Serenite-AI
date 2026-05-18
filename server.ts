@@ -583,7 +583,7 @@ async function startServer() {
     });
 
     // SPA fallback
-    app.get('*', (req, res) => {
+    app.get('*all', (req, res) => {
       const indexPath = path.join(distPath, 'index.html');
       if (fs.existsSync(indexPath)) {
         res.sendFile(indexPath);
