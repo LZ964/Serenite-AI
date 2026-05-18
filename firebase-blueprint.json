@@ -19,6 +19,13 @@
         "lastSobrietyCheck": { "type": "string", "format": "date-time" },
         "higherPower": { "type": "string" },
         "sponsorGender": { "type": "string", "enum": ["parrain", "marraine"] },
+        "birthDate": { "type": "string" },
+        "currentStep": { "type": "string" },
+        "language": { "type": "string" },
+        "challenges": {
+          "type": "array",
+          "items": { "type": "object" }
+        },
         "completedSteps": { 
           "type": "array",
           "items": { "type": "integer" }

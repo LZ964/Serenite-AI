@@ -34,7 +34,7 @@ service cloud.firestore {
     // -------------------------------------------------------------------------
     function isValidUser(data) {
       return data.uid is string && data.uid.size() <= 128
-          && data.email is string && data.email.size() <= 256
+          && (data.email == null || (data.email is string && data.email.size() <= 256))
           && data.points is int && data.points >= 0
           && data.isPremium is bool
           && data.requestCount is int
@@ -46,6 +46,10 @@ service cloud.firestore {
           && (data.lastSobrietyCheck == null || data.lastSobrietyCheck is string)
           && (data.higherPower == null || (data.higherPower is string && data.higherPower.size() <= 100))
           && (data.sponsorGender == null || data.sponsorGender in ['parrain', 'marraine'])
+          && (data.birthDate == null || data.birthDate is string)
+          && (data.currentStep == null || data.currentStep is string)
+          && (data.language == null || data.language is string)
+          && (data.challenges == null || data.challenges is list)
           && (data.createdAt == null || data.createdAt is string)
           && (data.completedSteps == null || data.completedSteps is list);
     }
@@ -62,7 +66,7 @@ service cloud.firestore {
                     && incoming().uid == userId // Immutable
                     && incoming().isPremium == existing().isPremium // User cannot change subscription status
                     && incoming().diff(existing()).affectedKeys().hasOnly([
-                         'points', 'sobrietyDate', 'recoveryStartDate', 'displayName', 'photoURL', 'lastGratitudeAt', 'requestCount', 'lastSobrietyCheck', 'completedSteps', 'email', 'higherPower', 'sponsorGender'
+                         'points', 'sobrietyDate', 'recoveryStartDate', 'displayName', 'photoURL', 'lastGratitudeAt', 'requestCount', 'lastSobrietyCheck', 'completedSteps', 'email', 'higherPower', 'sponsorGender', 'birthDate', 'currentStep', 'language', 'challenges'
                        ]);
     }
 
