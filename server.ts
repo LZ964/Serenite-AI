@@ -36,21 +36,34 @@ const getAdminDb = () => {
       let databaseId = undefined;
       let serviceAccount: any = null;
 
-      // 1. Try to read from FIREBASE_SERVICE_ACCOUNT env var first (JSON string)
+      // 1. Try to read from FIREBASE_SERVICE_ACCOUNT env var first (JSON string or Base64)
       if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-        let rawJson = process.env.FIREBASE_SERVICE_ACCOUNT.trim();
+        let rawContent = process.env.FIREBASE_SERVICE_ACCOUNT.trim();
+        console.log(`[FIREBASE] Found FIREBASE_SERVICE_ACCOUNT env var. Length: ${rawContent.length} chars.`);
+        
         try {
+          // Check if it's Base64
+          if (!rawContent.startsWith('{') && !rawContent.startsWith('"') && !rawContent.startsWith("'")) {
+            console.log(`[FIREBASE] Detected potential Base64 encoding. Attempting to decode...`);
+            try {
+              rawContent = Buffer.from(rawContent, 'base64').toString('utf8').trim();
+              console.log(`[FIREBASE] Successfully decoded Base64. New length: ${rawContent.length} chars.`);
+            } catch (e) {
+              console.warn(`[FIREBASE] Base64 decoding failed, treating as raw string.`);
+            }
+          }
+
           // Remove potential wrapping quotes if pasted incorrectly via terminal/UI
-          if (rawJson.startsWith("'") && rawJson.endsWith("'")) rawJson = rawJson.slice(1, -1).trim();
-          if (rawJson.startsWith('"') && rawJson.endsWith('"')) rawJson = rawJson.slice(1, -1).trim();
+          if (rawContent.startsWith("'") && rawContent.endsWith("'")) rawContent = rawContent.slice(1, -1).trim();
+          if (rawContent.startsWith('"') && rawContent.endsWith('"')) rawContent = rawContent.slice(1, -1).trim();
           
           try {
-            serviceAccount = JSON.parse(rawJson);
+            serviceAccount = JSON.parse(rawContent);
           } catch (parseError) {
             // Heuristic for single-quoted "JSON" (which is actually a JS object)
             // Replace '{ ' with '{" ' and similar
             console.warn(`[FIREBASE] JSON.parse failed. Attempting to fix potential single quotes...`);
-            const semiFixed = rawJson
+            const semiFixed = rawContent
               .replace(/([{,])\s*([a-zA-Z0-9_]+)\s*:/g, '$1"$2":') // Quote unquoted keys
               .replace(/'/g, '"'); // Replace remaining single quotes with double (dangerous but sometimes works)
             
@@ -68,9 +81,10 @@ const getAdminDb = () => {
         } catch (e) {
           console.error(`[FIREBASE] Critical parsing error for FIREBASE_SERVICE_ACCOUNT.`);
           console.error(`[FIREBASE] Error message: ${e.message}`);
-          console.error(`[FIREBASE] First 50 chars of string: ${rawJson.substring(0, 50)}...`);
-          console.error(`[FIREBASE] Last 10 chars of string: ...${rawJson.substring(rawJson.length - 10)}`);
-          console.error(`[FIREBASE] Make sure to paste the ENTIRE contents of the service account JSON file, starting with { and ending with }.`);
+          console.error(`[FIREBASE] String starts with: ${rawContent.substring(0, 50)}...`);
+          console.error(`[FIREBASE] String ends with: ...${rawContent.substring(rawContent.length - 10)}`);
+          console.error(`[FIREBASE] Total processed length: ${rawContent.length}`);
+          console.error(`[FIREBASE] If your string is very short or doesn't end with '}', it might be truncated by your platform. Try Base64 encoding it!`);
         }
       }
 
