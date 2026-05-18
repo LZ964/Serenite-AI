@@ -6,60 +6,58 @@
   --font-display: "Outfit", sans-serif;
   --font-serif: "Playfair Display", serif;
 
-  --color-natural-bg: #F5F2ED;
-  --color-natural-ink: #2D362F;
-  --color-natural-primary: #4A5D4E;
-  --color-natural-secondary: #D4A373;
-  --color-natural-accent: #7A7468;
-  --color-natural-line: #E5E1D8;
-  --color-natural-sidebar: #F9F7F2;
+  --color-natural-primary: #334155; /* Slate 700 - Sober & Professional */
+  --color-natural-secondary: #64748b; /* Slate 500 */
+  --color-natural-accent: #94a3b8; /* Slate 400 */
+  --color-natural-ink: #0f172a; /* Deep Navy */
+  --color-natural-sidebar: #ffffff; /* White sidebar for a cleaner look */
+  --color-natural-line: #e2e8f0; /* Light Slate Border */
+  --color-natural-bg: #f8fafc; /* Very light blue-gray */
 }
 
-body {
-  font-family: var(--font-sans);
-  background-color: var(--color-natural-bg);
-  color: var(--color-natural-ink);
+@layer base {
+  body {
+    @apply bg-natural-bg text-natural-ink antialiased selection:bg-natural-primary/20;
+    font-family: var(--font-sans);
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+    @apply text-natural-ink font-semibold;
+  }
 }
 
-h1, h2, h3, h4 {
-  font-family: var(--font-display);
-  letter-spacing: -0.02em;
+.glass {
+  @apply bg-white border border-natural-line shadow-sm;
 }
 
-.font-serif {
-  font-family: var(--font-serif);
+.neon-border {
+  @apply border border-natural-line shadow-sm;
 }
 
-.glass-panel {
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+.markdown-body {
+  @apply text-natural-ink/80 leading-relaxed;
 }
 
-.pulse-ring {
-  border: 2px solid var(--color-natural-primary);
-  border-radius: 50%;
-  width: 180px;
-  height: 180px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
+.markdown-body h1, .markdown-body h2, .markdown-body h3 {
+  @apply text-natural-ink font-bold mt-6 mb-4;
 }
 
-.pulse-dot {
-  width: 140px;
-  height: 140px;
-  background: var(--color-natural-primary);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  text-align: center;
-  padding: 20px;
-  font-size: 14px;
-  line-height: 1.4;
-  font-style: italic;
+.markdown-body p {
+  @apply mb-4;
+}
+
+.markdown-body ul {
+  @apply list-disc pl-6 mb-4;
+}
+
+@keyframes glow {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; }
+}
+
+.animate-glow {
+  /* No longer "neon" glow, just more subtle presence */
 }
 

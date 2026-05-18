@@ -11,11 +11,14 @@
         "photoURL": { "type": "string" },
         "points": { "type": "integer" },
         "sobrietyDate": { "type": "string", "format": "date-time" },
+        "recoveryStartDate": { "type": "string", "format": "date-time" },
         "isPremium": { "type": "boolean" },
         "requestCount": { "type": "integer" },
         "createdAt": { "type": "string", "format": "date-time" },
         "lastGratitudeAt": { "type": "string", "format": "date-time" },
         "lastSobrietyCheck": { "type": "string", "format": "date-time" },
+        "higherPower": { "type": "string" },
+        "sponsorGender": { "type": "string", "enum": ["parrain", "marraine"] },
         "completedSteps": { 
           "type": "array",
           "items": { "type": "integer" }

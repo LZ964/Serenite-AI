@@ -4,18 +4,21 @@ import { db } from '../lib/firebase';
 import { collection, query, where, getDocs, addDoc, orderBy, limit, doc, updateDoc } from 'firebase/firestore';
 import { Heart, Send, Sparkles, Quote, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
+import { fr, enUS } from 'date-fns/locale';
+import { translations, Language } from '../lib/translations';
 
 interface GratitudesProps {
   user: any;
   userData: any;
+  lang: Language;
 }
 
-const Gratitudes: React.FC<GratitudesProps> = ({ user, userData }) => {
+const Gratitudes: React.FC<GratitudesProps> = ({ user, userData, lang }) => {
   const [gratitudes, setGratitudes] = useState<any[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [justAdded, setJustAdded] = useState(false);
+  const t = translations[lang];
 
   useEffect(() => {
     loadGratitudes();
@@ -72,14 +75,13 @@ const Gratitudes: React.FC<GratitudesProps> = ({ user, userData }) => {
       exit={{ opacity: 0, x: -20 }}
       className="space-y-10"
     >
-      <header className="text-center space-y-4">
-        <div className="mx-auto h-20 w-20 bg-natural-secondary/10 rounded-[2rem] flex items-center justify-center text-natural-secondary mb-6 border border-natural-secondary/20 shadow-sm relative overflow-hidden">
-          <Heart className="h-10 w-10 relative z-10" />
-          <div className="absolute inset-0 bg-natural-secondary/5 blur-xl group-hover:blur-2xl transition-all" />
+      <header className="text-center space-y-4 flex flex-col items-center">
+        <div className="h-10 w-10 bg-natural-secondary/10 rounded-xl flex items-center justify-center text-natural-secondary mb-2">
+          <Heart size={24} />
         </div>
-        <h2 className="text-4xl font-serif italic text-natural-ink">Journal de Gratitude</h2>
+        <h2 className="text-4xl font-serif italic text-natural-ink">{t.gratitudesTitle || 'Journal de Gratitude'}</h2>
         <p className="text-natural-accent font-medium max-w-lg mx-auto leading-relaxed">
-          Prendre le temps de reconnaître ce qui est positif dans notre vie renforce notre rétablissement et notre esprit.
+          {t.gratitudesDesc || 'Prendre le temps de reconnaître ce qui est positif dans notre vie renforce notre rétablissement et notre esprit.'}
         </p>
       </header>
 
@@ -88,24 +90,24 @@ const Gratitudes: React.FC<GratitudesProps> = ({ user, userData }) => {
         <div className="flex flex-col gap-6">
           <div className="flex items-center gap-3 text-natural-secondary font-bold text-[10px] uppercase tracking-[0.2em]">
             <Sparkles size={16} />
-            Aujourd'hui, j'ai de la gratitude pour...
+            {lang === 'fr' ? "Aujourd'hui, j'ai de la gratitude pour..." : "Today, I am grateful for..."}
           </div>
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Écrivez quelque chose qui vous a fait sourire ou qui vous a aidé aujourd'hui..."
+            placeholder={lang === 'fr' ? "Écrivez quelque chose qui vous a fait sourire ou qui vous a aidé aujourd'hui..." : "Write something that made you smile or helped you today..."}
             className="w-full h-32 p-6 bg-natural-sidebar rounded-3xl border-none outline-none resize-none text-natural-ink placeholder:text-natural-accent/40 font-medium italic"
           />
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <span className="text-[10px] text-natural-accent font-bold uppercase tracking-wider bg-natural-sidebar px-4 py-2 rounded-full">
-              Récompense : +20 points de sobriété
+              {lang === 'fr' ? 'Récompense : +20 points de sobriété' : 'Reward: +20 sobriety points'}
             </span>
             <button
               onClick={handleAdd}
               disabled={!input.trim()}
               className="w-full sm:w-auto flex items-center justify-center gap-2 bg-natural-secondary text-white px-10 py-3.5 rounded-2xl font-bold shadow-lg shadow-natural-secondary/20 hover:scale-105 disabled:opacity-50 transition-all active:scale-95"
             >
-              Envoyer
+              {lang === 'fr' ? 'Envoyer' : 'Send'}
               <Send size={18} />
             </button>
           </div>
@@ -121,7 +123,7 @@ const Gratitudes: React.FC<GratitudesProps> = ({ user, userData }) => {
             className="p-5 bg-natural-primary/10 border border-natural-primary/20 rounded-[1.5rem] text-natural-primary text-center font-bold text-sm flex items-center justify-center gap-3 shadow-sm"
           >
             <Sparkles size={18} />
-            Gratitude enregistrée ! +20 points ajoutés à votre compte.
+            {lang === 'fr' ? 'Gratitude enregistrée ! +20 points ajoutés à votre compte.' : 'Gratitude recorded! +20 points added to your account.'}
           </motion.div>
         )}
       </AnimatePresence>
@@ -130,7 +132,7 @@ const Gratitudes: React.FC<GratitudesProps> = ({ user, userData }) => {
       <section className="space-y-6">
         <h3 className="text-[10px] font-bold text-natural-accent uppercase tracking-[0.3em] flex items-center gap-3">
           <div className="h-px flex-1 bg-natural-line" />
-          Mon Historique
+          {t.history || (lang === 'fr' ? 'Mon Historique' : 'My History')}
           <div className="h-px flex-1 bg-natural-line" />
         </h3>
         
@@ -140,7 +142,7 @@ const Gratitudes: React.FC<GratitudesProps> = ({ user, userData }) => {
           </div>
         ) : gratitudes.length === 0 ? (
           <div className="p-16 text-center text-natural-accent font-medium italic bg-natural-sidebar rounded-[2.5rem] border-2 border-dashed border-natural-line">
-            Votre historique de gratitudes apparaîtra ici.
+            {lang === 'fr' ? 'Votre historique de gratitudes apparaîtra ici.' : 'Your gratitude history will appear here.'}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -152,7 +154,7 @@ const Gratitudes: React.FC<GratitudesProps> = ({ user, userData }) => {
               >
                 <div className="flex items-center gap-2 text-[10px] font-bold text-natural-accent uppercase mb-4 tracking-wider">
                   <Calendar size={14} className="text-natural-secondary" />
-                  {format(new Date(g.createdAt), 'dd MMMM yyyy', { locale: fr })}
+                  {format(new Date(g.createdAt), 'dd MMMM yyyy', { locale: lang === 'fr' ? fr : enUS })}
                 </div>
                 <p className="text-natural-ink font-medium leading-relaxed italic text-sm">"{g.text}"</p>
                 <div className="absolute -bottom-2 -right-2 text-natural-secondary/10 group-hover:text-natural-secondary/20 transition-all transform group-hover:scale-110">

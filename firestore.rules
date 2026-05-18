@@ -5,7 +5,7 @@ service cloud.firestore {
     // GLOBALS
     // -------------------------------------------------------------------------
     function isSignedIn() {
-      return request.auth != null && request.auth.token.email_verified == true;
+      return request.auth != null;
     }
 
     function isOwner(userId) {
@@ -38,11 +38,14 @@ service cloud.firestore {
           && data.points is int && data.points >= 0
           && data.isPremium is bool
           && data.requestCount is int
-          && (data.displayName == null || (data.displayName is string && data.displayName.size() <= 100))
-          && (data.photoURL == null || (data.photoURL is string && data.photoURL.size() <= 500))
+          && (data.displayName == null || (data.displayName is string && data.displayName.size() <= 500))
+          && (data.photoURL == null || (data.photoURL is string && data.photoURL.size() <= 2048))
           && (data.sobrietyDate == null || data.sobrietyDate is string)
+          && (data.recoveryStartDate == null || data.recoveryStartDate is string)
           && (data.lastGratitudeAt == null || data.lastGratitudeAt is string)
           && (data.lastSobrietyCheck == null || data.lastSobrietyCheck is string)
+          && (data.higherPower == null || (data.higherPower is string && data.higherPower.size() <= 100))
+          && (data.sponsorGender == null || data.sponsorGender in ['parrain', 'marraine'])
           && (data.createdAt == null || data.createdAt is string)
           && (data.completedSteps == null || data.completedSteps is list);
     }
@@ -59,7 +62,7 @@ service cloud.firestore {
                     && incoming().uid == userId // Immutable
                     && incoming().isPremium == existing().isPremium // User cannot change subscription status
                     && incoming().diff(existing()).affectedKeys().hasOnly([
-                         'points', 'sobrietyDate', 'displayName', 'photoURL', 'lastGratitudeAt', 'requestCount', 'lastSobrietyCheck', 'completedSteps', 'email'
+                         'points', 'sobrietyDate', 'recoveryStartDate', 'displayName', 'photoURL', 'lastGratitudeAt', 'requestCount', 'lastSobrietyCheck', 'completedSteps', 'email', 'higherPower', 'sponsorGender'
                        ]);
     }
 

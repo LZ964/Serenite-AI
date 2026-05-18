@@ -1,6 +1,6 @@
 {
   "name": "Sérénité AI - Votre Parrain 12 Étapes",
   "description": "Un compagnon IA bienveillant qui agit comme un parrain pour les groupes de soutien en 12 étapes (AA, NA, CA, CMA). Propose un suivi de sobriété, un guide des étapes, une mémoire des conversations et une interaction vocale.",
-  "requestFramePermissions": ["microphone"],
+  "requestFramePermissions": ["microphone", "camera"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
