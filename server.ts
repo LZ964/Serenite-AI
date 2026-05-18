@@ -92,6 +92,15 @@ async function startServer() {
   app.use(express.json());
 
   // API Routes
+  app.get('/api/health', (req, res) => {
+    res.json({ 
+      status: 'ok', 
+      time: new Date().toISOString(),
+      env: process.env.NODE_ENV,
+      port: PORT
+    });
+  });
+
   app.post('/api/chat', async (req, res) => {
     try {
       const { userId, message, history, images, currentStep, completedSteps } = req.body;
@@ -528,8 +537,17 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     // In production, server.cjs is in the dist folder, so __dirname is the dist folder
-    const distPath = __dirname;
+    const distPath = path.resolve(__dirname);
+    console.log(`Serving static files from: ${distPath}`);
+    
     app.use(express.static(distPath));
+    
+    // Logging middleware for production to debug 404
+    app.use((req, res, next) => {
+      console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+      next();
+    });
+
     app.get('*', (req, res) => {
       const indexPath = path.join(distPath, 'index.html');
       res.sendFile(indexPath);

@@ -67,11 +67,9 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow get: if isOwner(userId) && isValidId(userId);
-      allow create: if isOwner(userId) && isValidId(userId) && isVerified()
+      allow create: if isOwner(userId) && isValidId(userId) && isSignedIn()
                     && isValidUser(incoming()) 
-                    && incoming().get('isPremium', false) == false
-                    && incoming().get('points', 0) == 0
-                    && incoming().get('requestCount', 0) == 0;
+                    && incoming().get('uid', '') == userId;
       allow update: if isOwner(userId) && isValidId(userId) && isVerified()
                     && isValidUser(incoming())
                     && incoming().uid == userId // Immutable
