@@ -30,13 +30,61 @@ let adminDb: admin.firestore.Firestore | null = null;
 const getAdminDb = () => {
   if (!adminDb) {
     try {
-      // Robust check for initialized apps in both ESM and CJS
       const firebaseAdmin = (admin as any).default || admin;
-      const apps = firebaseAdmin.apps || [];
-      if (apps.length === 0) {
-        firebaseAdmin.initializeApp();
+      const apps = (firebaseAdmin.apps || []) as any[];
+      let projectId = process.env.GOOGLE_CLOUD_PROJECT || process.env.FIREBASE_PROJECT_ID;
+      let databaseId = undefined;
+      let serviceAccount: any = null;
+
+      // 1. Try to read from FIREBASE_SERVICE_ACCOUNT env var first (JSON string)
+      if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+        try {
+          serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+          projectId = serviceAccount.project_id || serviceAccount.projectId || projectId;
+          console.log(`[FIREBASE] Detected Project ID from FIREBASE_SERVICE_ACCOUNT: ${projectId}`);
+        } catch (e) {
+          console.error(`[FIREBASE] Failed to parse FIREBASE_SERVICE_ACCOUNT JSON:`, e);
+        }
       }
-      adminDb = firebaseAdmin.firestore();
+
+      // 2. Try to read from config file
+      const configPath = path.resolve(process.cwd(), 'firebase-applet-config.json');
+      if (fs.existsSync(configPath)) {
+        try {
+          const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+          projectId = projectId || config.projectId;
+          databaseId = config.firestoreDatabaseId;
+          console.log(`[FIREBASE] Detected config from file: projectId=${projectId}, databaseId=${databaseId}`);
+        } catch (e) {
+          console.error(`[FIREBASE] Error reading config file:`, e);
+        }
+      }
+
+      if (apps.length === 0) {
+        console.log(`[FIREBASE] Initializing new App with Project ID: ${projectId}`);
+        const adminConfig: any = {
+          projectId: projectId,
+        };
+
+        if (serviceAccount && serviceAccount.private_key) {
+          adminConfig.credential = firebaseAdmin.credential.cert(serviceAccount);
+          console.log(`[FIREBASE] Using Service Account credentials`);
+        }
+
+        firebaseAdmin.initializeApp(adminConfig);
+      } else {
+        console.log(`[FIREBASE] Using existing App: ${apps[0].name}`);
+        // If the existing app doesn't have a projectId, we might have issues
+      }
+      
+      // Explicitly pass projectId and databaseId to firestore if known
+      const firestoreOptions: any = {};
+      if (projectId) firestoreOptions.projectId = projectId;
+      if (databaseId) firestoreOptions.databaseId = databaseId;
+
+      console.log(`[FIREBASE] Creating Firestore instance with: ${JSON.stringify(firestoreOptions)}`);
+      adminDb = firebaseAdmin.firestore(databaseId); 
+      // Note: Passing databaseId to firestore() works for Enterprise databases
     } catch (error) {
       console.error('Firebase Admin init failed:', error);
     }
