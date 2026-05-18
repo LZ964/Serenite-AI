@@ -536,21 +536,31 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    // In production, server.cjs is in the dist folder, so __dirname is the dist folder
-    const distPath = path.resolve(__dirname);
-    console.log(`Serving static files from: ${distPath}`);
+    // In production, serve the built static files
+    const distPath = path.join(process.cwd(), 'dist');
+    console.log(`[PROD] Static files path: ${distPath}`);
+    console.log(`[PROD] Current working directory: ${process.cwd()}`);
+    console.log(`[PROD] __dirname: ${__dirname}`);
     
+    // Serve static files
     app.use(express.static(distPath));
     
-    // Logging middleware for production to debug 404
+    // Logging middleware for production to debug requests
     app.use((req, res, next) => {
-      console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+      if (req.url.startsWith('/api')) return next();
+      console.log(`[PROD] Request: ${req.method} ${req.url}`);
       next();
     });
 
+    // SPA fallback
     app.get('*', (req, res) => {
       const indexPath = path.join(distPath, 'index.html');
-      res.sendFile(indexPath);
+      res.sendFile(indexPath, (err) => {
+        if (err) {
+          console.error(`[PROD] Error sending index.html: ${err.message}`);
+          res.status(404).send("Application files not found. Please check build output.");
+        }
+      });
     });
   }
 
@@ -560,4 +570,8 @@ async function startServer() {
   });
 }
 
-startServer();
+// Global error handler for the server startup
+startServer().catch(err => {
+  console.error("Critical server startup error:", err);
+  process.exit(1);
+});
